@@ -1,0 +1,8 @@
+exec EnableFlashDL
+exec Device=STM32F407VG
+speed 1000
+h
+loadfile px4flow.hex
+r
+g
+exit

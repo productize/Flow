@@ -9,6 +9,9 @@ OPENOCD		?= ../../sat/bin/openocd
 JTAGCONFIG 	?= olimex-jtag-tiny.cfg
 #JTAGCONFIG	?= olimex-arm-usb-tiny-h.cfg
 
+JLINK := JLinkExe
+JLINK_OPT := -device STM32F407VG -if swd -speed 1000
+
 MAVLINKBASEDIR = mavlink/include/mavlink/v1.0
 MAVLINKDIR = mavlink/include/mavlink/v1.0/common
 MAVLINKUSERDIR = mavlink/include/mavlink/v1.0/user
@@ -83,7 +86,7 @@ all:		$(BINARY) objcopy
 
 $(BINARY):	$(SRCS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
-	
+
 objcopy:
 	@$(OBJCOPY) -O binary px4flow.elf px4flow.bin
 	@python -u Tools/px_mkfw.py --board_id 6 > px4flow_prototype.px4
@@ -94,11 +97,23 @@ clean:
 
 upload-jtag:		all flash-both
 
+px4flow.hex: px4flow.elf
+	$(OBJCOPY) px4flow.elf -O ihex px4flow.hex
+
 flash:
 	$(OPENOCD) --search ../px4_flow -f $(JTAGCONFIG) -f stm32f4x.cfg  -c init -c "reset halt" -c "flash write_image erase px4flow.elf" -c "reset run" -c shutdown
 
+flash-jlink: px4flow.hex
+	$(JLINK) $(JLINK_OPT) Tools/loadfile.jlink
+
 flash-bootloader:
 	$(OPENOCD) --search ../px4_flow -f $(JTAGCONFIG) -f stm32f4x.cfg  -c init -c "reset halt" -c "flash write_image erase px4flow_bl.elf" -c "reset run" -c shutdown
+
+px4flow_bl.hex: px4flow_bl.elf
+	$(OBJCOPY) px4flow_bl.elf -O ihex px4flow_bl.hex
+
+flash-bootloader-jlink: px4flow_bl.hex
+	$(JLINK) $(JLINK_OPT) Tools/bootloader.jlink
 
 flash-both:
 	$(OPENOCD) --search ../px4_flow -f $(JTAGCONFIG) -f stm32f4x.cfg  -c init -c "reset halt" -c "flash write_image erase px4flow.elf" -c "reset run" -c init -c "reset halt" -c "flash write_image erase px4flow_bl.elf" -c "reset run" -c shutdown
